@@ -1,0 +1,17 @@
+[
+    {
+        "email": "admin@tapetesapp.com",
+        "password": "contraseña",
+        "role": "administrador"
+    },
+    {
+        "email": "operador@tapetesapp.com",
+        "password": "contraseña",
+        "role": "operador"
+    },
+    {
+        "email": "juan@gmail.com",
+        "password": "juanma",
+        "role": "usuario_comun"
+    }
+]

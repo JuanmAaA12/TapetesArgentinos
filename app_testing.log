@@ -1,0 +1,10 @@
+2026-06-04 00:28:29,677 [INFO] Se accedió a la pantalla de Autenticación inicial.
+2026-06-04 00:28:29,924 [INFO] Se accedió a la pantalla de Autenticación inicial.
+2026-06-04 00:31:23,472 [INFO] Se accedió a la pantalla de Autenticación inicial.
+2026-06-04 00:31:27,943 [INFO] Se accedió a la pantalla de Autenticación inicial.
+2026-06-04 00:33:57,806 [INFO] Se accedió a la pantalla de Autenticación inicial.
+2026-06-04 00:34:26,943 [INFO] Intento de login procesado para el correo: admin@tapetesapp.com
+2026-06-04 00:34:26,947 [INFO] Autenticación exitosa. Usuario: admin@tapetesapp.com | Rol: administrador
+2026-06-04 00:34:43,239 [INFO] Intento de login procesado para el correo: juan@gmail.com
+2026-06-04 00:34:43,240 [INFO] Autenticación exitosa. Usuario: juan@gmail.com | Rol: usuario_comun
+2026-06-04 00:34:43,247 [INFO] Acceso concedido al panel de diseño de tapetes.

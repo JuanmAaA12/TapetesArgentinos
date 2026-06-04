@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Tapetes App - Ingreso</title>
+    <link rel="stylesheet" href="/static/style.css"></head>
+<body>
+    <div class="container">
+        <h2>Tapetes Argentinos</h2>
+        
+        {% if error %}
+            <div class="error-msg">{{ error }}</div>
+        {% endif %}
+        {% if msg %}
+            <div class="success-msg">{{ msg }}</div>
+        {% endif %}
+
+        <form action="/auth/login" method="POST">
+            <h3>Iniciar Sesión</h3>
+            <div class="form-group">
+                <label>Correo Electrónico</label>
+                <input type="email" name="email" required placeholder="ejemplo@correo.com">
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" name="password" required placeholder="••••••••">
+            </div>
+            <button type="submit">Ingresar al Sistema</button>
+        </form>
+
+        <hr style="margin: 25px 0; border: 0; border-top: 1px solid #e2e8f0;">
+
+        <form action="/auth/register" method="POST">
+            <h3>¿Sos nuevo? Registrate</h3>
+            <div class="form-group">
+                <label>Nombre Completo</label>
+                <input type="text" name="nombre" required placeholder="Tu Nombre">
+            </div>
+            <div class="form-group">
+                <label>Correo Electrónico</label>
+                <input type="email" name="email" required placeholder="tu@email.com">
+            </div>
+            <div class="form-group">
+                <label>Contraseña</label>
+                <input type="password" name="password" required placeholder="Crea una contraseña">
+            </div>
+            <button type="submit" style="background-color: #4a5568;">Crear Cuenta</button>
+        </form>
+    </div>
+</body>
+</html>

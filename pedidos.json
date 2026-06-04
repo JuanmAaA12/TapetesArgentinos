@@ -1,0 +1,16 @@
+[
+    {
+        "id": 1,
+        "cliente": "Juan Manuel Veiga Lucien",
+        "email": "juan@gmail.com",
+        "material": "Algodón Orgánico",
+        "medidas": "1.5m x 2.0m",
+        "precio_total": 27000.0,
+        "anticipo_requerido": 13500.0,
+        "estado": "Despachado (Envío Finalizado)",
+        "boceto_aprobado": false,
+        "saldo_pendiente": 0,
+        "fecha_entrega": "En 15 días hábiles",
+        "numero_guia": "AR-984723984-DH"
+    }
+]

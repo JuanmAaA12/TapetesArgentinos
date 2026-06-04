@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Administración - Operaciones</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container container-wide">
+        <h2>Panel de Control Operativo</h2>
+        <h3>Gestión Estratégica de Pedidos de Tapetes</h3>
+        
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Cliente</th>
+                        <th>Material</th>
+                        <th>Medidas</th>
+                        <th>Total</th>
+                        <th>Saldo Pendiente</th>
+                        <th>Estado</th>
+                        <th>Acción Operativa</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pedido in pedidos %}
+                    <tr>
+                        <td>#{{ pedido.id }}</td>
+                        <td><strong>{{ pedido.cliente }}</strong><br><span style="font-size:11px; color:#718096;">{{ pedido.email }}</span></td>
+                        <td>{{ pedido.material }}</td>
+                        <td>{{ pedido.medidas }}</td>
+                        <td>${{ pedido.precio_total }}</td>
+                        <td>${{ pedido.saldo_pendiente }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if 'Pendiente' in pedido.estado %}badge-pending
+                                {% elif 'Producción' in pedido.estado %}badge-progress
+                                {% else %}badge-done{% endif %}">
+                                {{ pedido.estado }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if 'Finalizado' not in pedido.estado %}
+                            <form action="/orders/{{ pedido.id }}/advance" method="POST" style="margin:0;">
+                                <button type="submit" class="btn-small">Avanzar Estado</button>
+                            </form>
+                            {% else %}
+                            <span style="color: #48bb78; font-size: 12px; font-weight: bold;">✔ Entregado</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" style="text-align: center; color: #a0aec0;">No hay pedidos en el sistema para gestionar.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p style="text-align: center; margin-top: 20px;"><a href="/" style="color: #3182ce; text-decoration: none;">← Volver al Login</a></p>
+    </div>
+</body>
+</html>

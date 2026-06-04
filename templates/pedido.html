@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Panel de Pedidos - Diseña tu Tapete</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container container-wide">
+        <h2>Panel de Personalización</h2>
+        
+        <form action="/orders" method="POST" style="background: #f7fafc; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+            <h3>Cotizá y Solicitá tu Tapete</h3>
+            <div class="grid-split">
+                <div class="form-group">
+                    <label>Nombre del Solicitante</label>
+                    <input type="text" name="cliente" required placeholder="Juan Pérez">
+                </div>
+                <div class="form-group">
+                    <label>Email de Contacto</label>
+                    <input type="email" name="email" required placeholder="juan@correo.com">
+                </div>
+            </div>
+            
+            <div class="form-group">
+                <label>Material Textil</label>
+                <select name="material" required>
+                    <option value="Lana de Oveja Premium">Lana de Oveja Premium ($25.000 / m²)</option>
+                    <option value="Algodón Orgánico">Algodón Orgánico ($18.000 / m²)</option>
+                    <option value="Sintético de Alta Densidad">Sintético de Alta Densidad ($12.000 / m²)</option>
+                </select>
+            </div>
+
+            <div class="grid-split">
+                <div class="form-group">
+                    <label>Ancho (en metros)</label>
+                    <input type="number" name="ancho" step="0.1" min="0.5" max="5" required placeholder="1.5">
+                </div>
+                <div class="form-group">
+                    <label>Largo (en metros)</label>
+                    <input type="number" name="largo" step="0.1" min="0.5" max="5" required placeholder="2.0">
+                </div>
+            </div>
+            <button type="submit" style="background-color: #2b6cb0;">Enviar Solicitud de Fabricación</button>
+        </form>
+
+        <h3>Mis Pedidos Solicitados</h3>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Material</th>
+                        <th>Dimensiones</th>
+                        <th>Precio Total</th>
+                        <th>Seña (50%)</th>
+                        <th>Estado Actual</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pedido in pedidos %}
+                    <tr>
+                        <td>#{{ pedido.id }}</td>
+                        <td>{{ pedido.material }}</td>
+                        <td>{{ pedido.medidas }}</td>
+                        <td>${{ pedido.precio_total }}</td>
+                        <td>${{ pedido.anticipo_requerido }}</td>
+                        <td>
+                            <span class="badge 
+                                {% if 'Pendiente' in pedido.estado %}badge-pending
+                                {% elif 'Producción' in pedido.estado %}badge-progress
+                                {% else %}badge-done{% endif %}">
+                                {{ pedido.estado }}
+                            </span>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" style="text-align: center; color: #a0aec0;">No tenés pedidos registrados todavía.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <p style="text-align: center; margin-top: 20px;"><a href="/" style="color: #3182ce; text-decoration: none;">← Salir / Volver</a></p>
+    </div>
+</body>
+</html>
