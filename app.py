@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form
+from fastapi import FastAPI, Request, Form, HTTPException, Response
 from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -10,7 +10,7 @@ app = FastAPI(title="TapetesApp - Proyecto Base Oficial")
 handler = app # Enlace obligatorio requerido por Vercel
 
 # =====================================================================
-# 1. RUTEOS ABSOLUTOS SEGUROS (Evita errores 404 y pantallas sin CSS)
+# 1. RUTEOS ABSOLUTOS SEGUROS
 # =====================================================================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -24,6 +24,7 @@ templates = Jinja2Templates(directory=TEMPLATES_DIR)
 if os.environ.get("VERCEL"):
     ARCHIVO_USUARIOS = '/tmp/usuarios.json'
     ARCHIVO_PEDIDOS = '/tmp/pedidos.json'
+    ARCHIVO_STOCK = '/tmp/stock.json'
     LOG_FILE = '/tmp/app_testing.log'
     
     if not os.path.exists(ARCHIVO_USUARIOS):
@@ -32,181 +33,258 @@ if os.environ.get("VERCEL"):
                 {"email": "admin@tapetesapp.com", "password": "contraseña", "role": "administrador"},
                 {"email": "operador@tapetesapp.com", "password": "contraseña", "role": "operador"},
                 {"email": "juan@gmail.com", "password": "juanma", "role": "usuario_comun"}
-            ], f, indent=4)
+            ], f, ensure_ascii=False, indent=4)
             
     if not os.path.exists(ARCHIVO_PEDIDOS):
         with open(ARCHIVO_PEDIDOS, 'w', encoding='utf-8') as f:
-            json.dump([{
-                "id": 1,
-                "cliente": "Juan Manuel Veiga Lucien",
-                "email": "juan@gmail.com",
-                "material": "Algodón Orgánico",
-                "medidas": "1.5m x 2.0m",
-                "precio_total": 27000.0,
-                "anticipo_requerido": 13500.0,
-                "estado": "Despachado (Envío Finalizado)",
-                "boceto_aprobado": False,
-                "saldo_pendiente": 0,
-                "fecha_entrega": "En 15 días hábiles",
-                "numero_guia": "AR-984723984-DH"
-            }], f, indent=4)
+            json.dump([
+                {
+                    "id": 1,
+                    "cliente": "Juan Manuel Veiga Lucien",
+                    "email": "juan@gmail.com",
+                    "material": "Algodón Orgánico",
+                    "medidas": "1.5m x 2.0m",
+                    "precio_total": 27000.0,
+                    "anticipo_requerido": 13500.0,
+                    "estado": "Despachado (Envío Finalizado)",
+                    "boceto_aprobado": False,
+                    "saldo_pendiente": 0,
+                    "fecha_entrega": "En 15 días hábiles",
+                    "numero_guia": "AR-984723984-DH"
+                }
+            ], f, ensure_ascii=False, indent=4)
 else:
-    # Rutas estándar locales para tu computadora
-    ARCHIVO_USUARIOS = os.path.join(BASE_DIR, 'usuarios.json')
-    ARCHIVO_PEDIDOS = os.path.join(BASE_DIR, 'pedidos.json')
-    LOG_FILE = os.path.join(BASE_DIR, "app_testing.log")
+    ARCHIVO_USUARIOS = 'usuarios.json'
+    ARCHIVO_PEDIDOS = 'pedidos.json'
+    ARCHIVO_STOCK = 'stock.json'
+    LOG_FILE = 'app_testing.log'
 
-# =====================================================================
-# 2. SISTEMA DE LOGS CON ENCODING UTF-8 (Evita crasheos por tildes)
-# =====================================================================
-for u_handler in logging.root.handlers[:]:
-    logging.root.removeHandler(u_handler)
-
+# Configuración del logging
 logging.basicConfig(
+    filename=LOG_FILE,
     level=logging.INFO,
     format='%(asctime)s [%(levelname)s] %(message)s',
-    handlers=[
-        logging.FileHandler(LOG_FILE, encoding='utf-8', mode='a'),
-        logging.StreamHandler()
-    ]
+    datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-PRECIOS_MATERIAL = {
-    "Lana de Oveja Premium": 25000,
-    "Algodón Orgánico": 18000,
-    "Sintético de Alta Densidad": 12000
-}
-
 # =====================================================================
-# 3. FUNCIONES DE PERSISTENCIA (Lectura y Escritura de datos)
+# 2. FUNCIONES REUTILIZABLES DE PERSISTENCIA
 # =====================================================================
 def cargar_usuarios():
-    if not os.path.exists(ARCHIVO_USUARIOS):
-        return []
     try:
         with open(ARCHIVO_USUARIOS, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        logging.error(f"Error al cargar usuarios: {str(e)}")
         return []
 
-def guardar_usuarios(usuarios):
+def guardar_usuarios(datos):
     try:
         with open(ARCHIVO_USUARIOS, 'w', encoding='utf-8') as f:
-            json.dump(usuarios, f, indent=4, ensure_ascii=False)
+            json.dump(datos, f, ensure_ascii=False, indent=4)
     except Exception as e:
         logging.error(f"Error al guardar usuarios: {str(e)}")
 
 def cargar_pedidos():
-    if not os.path.exists(ARCHIVO_PEDIDOS):
-        return []
     try:
         with open(ARCHIVO_PEDIDOS, 'r', encoding='utf-8') as f:
             return json.load(f)
-    except Exception:
+    except Exception as e:
+        logging.error(f"Error al cargar pedidos: {str(e)}")
         return []
 
-def guardar_pedidos(pedidos):
+def guardar_pedidos(datos):
     try:
         with open(ARCHIVO_PEDIDOS, 'w', encoding='utf-8') as f:
-            json.dump(pedidos, f, indent=4, ensure_ascii=False)
+            json.dump(datos, f, ensure_ascii=False, indent=4)
     except Exception as e:
         logging.error(f"Error al guardar pedidos: {str(e)}")
 
+def cargar_stock():
+    if not os.path.exists(ARCHIVO_STOCK):
+        default_stock = [
+            {"id": 1, "material": "Lana de Oveja Premium", "precio_base": 25000, "stock": 120},
+            {"id": 2, "material": "Algodón Orgánico", "precio_base": 18000, "stock": 85},
+            {"id": 3, "material": "Sintético de Alta Densidad", "precio_base": 12000, "stock": 60}
+        ]
+        with open(ARCHIVO_STOCK, 'w', encoding='utf-8') as f:
+            json.dump(default_stock, f, ensure_ascii=False, indent=4)
+    with open(ARCHIVO_STOCK, 'r', encoding='utf-8') as f:
+        return json.load(f)
+
+def guardar_stock(datos):
+    with open(ARCHIVO_STOCK, 'w', encoding='utf-8') as f:
+        json.dump(datos, f, ensure_ascii=False, indent=4)
+
+def verificar_sesion_rol(request: Request, roles_permitidos: list):
+    rol = request.cookies.get("rol")
+    if not rol:
+        raise HTTPException(status_code=401, detail="No autenticado. Debe iniciar sesion.")
+    if rol not in roles_permitidos:
+        raise HTTPException(status_code=403, detail="Acceso denegado. Se requiere rol autorizado.")
+    return rol
+
 # =====================================================================
-# 4. ENDPOINTS CONTROLADORES (Vistas e Inicios de Sesión)
+# 3. INTERFACES GRÁFICAS (RUTAS HTML ADAPTADAS A TUS PLANTILLAS)
 # =====================================================================
 @app.get("/", response_class=HTMLResponse)
-async def vista_login(request: Request):
+async def pantalla_autenticacion(request: Request):
     logging.info("Se accedió a la pantalla de Autenticación inicial.")
-    return templates.TemplateResponse(request, "login.html", context={"error": None, "msg": None})
+    return templates.TemplateResponse(request=request, name="login.html", context={"error": None, "msg": None})
 
-@app.post("/auth/login")
-async def procesar_login(request: Request, email: str = Form(...), password: str = Form(...)):
+@app.post("/auth/login", response_class=HTMLResponse)
+async def procesar_autenticacion(request: Request, email: str = Form(...), password: str = Form(...)):
     logging.info(f"Intento de login procesado para el correo: {email}")
-    usuarios_sistema = cargar_usuarios()
+    usuarios = cargar_usuarios()
     
     usuario_valido = None
-    for u in usuarios_sistema:
+    for u in usuarios:
         if u['email'] == email and u['password'] == password:
             usuario_valido = u
             break
             
     if usuario_valido:
-        rol = usuario_valido.get('role', 'usuario_comun')
-        logging.info(f"Autenticación exitosa. Usuario: {email} | Rol: {rol}")
-        if rol in ["administrador", "operador"]:
-            return RedirectResponse(url="/admin", status_code=303)
-        return RedirectResponse(url="/pedido", status_code=303)
-    
-    logging.warning(f"Fallo de credenciales para el usuario: {email}")
-    return templates.TemplateResponse(request, "login.html", context={"error": "Credenciales inválidas de acceso.", "msg": None})
-
-@app.post("/auth/register")
-async def procesar_registro(request: Request, nombre: str = Form(...), email: str = Form(...), password: str = Form(...)):
-    usuarios_sistema = cargar_usuarios()
-    
-    for u in usuarios_sistema:
-        if u['email'] == email:
-            return templates.TemplateResponse(request, "login.html", context={"error": "El correo ya está registrado.", "msg": None})
+        logging.info(f"Autenticación exitosa. Usuario: {email} | Rol: {usuario_valido['role']}")
+        
+        if usuario_valido['role'] in ['administrador', 'operador']:
+            redireccion = RedirectResponse(url="/admin", status_code=303)
+        else:
+            redireccion = RedirectResponse(url="/pedido", status_code=303)
             
-    nuevo_usuario = {"nombre": nombre, "email": email, "password": password, "role": "usuario_comun"}
-    usuarios_sistema.append(nuevo_usuario)
-    guardar_usuarios(usuarios_sistema)
+        redireccion.set_cookie(key="usuario", value=email)
+        redireccion.set_cookie(key="rol", value=usuario_valido['role'])
+        return redireccion
+        
+    logging.warning(f"Fallo de autenticación para el correo: {email}")
+    return templates.TemplateResponse(request=request, name="login.html", context={"error": "Credenciales incorrectas o usuario inexistente.", "msg": None})
+
+@app.post("/auth/register", response_class=HTMLResponse)
+async def procesar_registro(request: Request, nombre: str = Form(...), email: str = Form(...), password: str = Form(...)):
+    logging.info(f"Intento de registro para el correo: {email}")
+    usuarios = cargar_usuarios()
     
-    logging.info(f"Registro exitoso del usuario: {email}")
-    return templates.TemplateResponse(request, "login.html", context={"error": None, "msg": "Registro completado con éxito."})
+    for u in usuarios:
+        if u['email'] == email:
+            return templates.TemplateResponse(request=request, name="login.html", context={"error": "El correo ya se encuentra registrado.", "msg": None})
+            
+    nuevo_usuario = {
+        "email": email,
+        "password": password,
+        "role": "usuario_comun"
+    }
+    usuarios.append(nuevo_usuario)
+    guardar_usuarios(usuarios)
+    
+    logging.info(f"Nuevo usuario común registrado exitosamente: {email}")
+    return templates.TemplateResponse(request=request, name="login.html", context={"error": None, "msg": "¡Registro exitoso! Ya podés iniciar sesión arriba."})
 
 @app.get("/pedido", response_class=HTMLResponse)
-async def vista_pedido(request: Request):
-    logging.info("Acceso concedido al panel de diseño de tapetes.")
-    pedidos_sistema = cargar_pedidos()
-    return templates.TemplateResponse(request, "pedido.html", context={"pedidos": pedidos_sistema})
+async def formulario_pedido(request: Request):
+    usuario_sesion = request.cookies.get("usuario")
+    if not usuario_sesion:
+        return RedirectResponse(url="/", status_code=303)
+        
+    logging.info(f"El usuario {usuario_sesion} ingresó al panel de personalización de tapetes.")
+    pedidos_totales = cargar_pedidos()
+    # Filtrar para que el usuario común solo vea sus propios pedidos históricos en la tabla inferior
+    mis_pedidos = [p for p in pedidos_totales if p.get('email') == usuario_sesion]
+    
+    return templates.TemplateResponse(request=request, name="pedido.html", context={"usuario": usuario_sesion, "pedidos": mis_pedidos, "msg": None})
 
-@app.post("/orders")
-async def registrar_pedido(request: Request, cliente: str = Form(...), email: str = Form(...), material: str = Form(...), ancho: float = Form(...), largo: float = Form(...)):
+@app.post("/orders", response_class=HTMLResponse)
+async def registrar_nuevo_pedido(
+    request: Request,
+    cliente: str = Form(...),
+    email: str = Form(...),
+    material: str = Form(...),
+    medidas: str = Form(...)
+):
     pedidos_sistema = cargar_pedidos()
+    nuevo_id = max([p['id'] for p in pedidos_sistema], default=0) + 1
     
-    precio_por_m2 = PRECIOS_MATERIAL.get(material, 12000)
-    metros_cuadrados = ancho * largo
-    precio_calculado = metros_cuadrados * precio_por_m2
-    anticipo = precio_calculado * 0.5
+    precios_materiales = {
+        "Lana de Oveja Premium": 25000.0,
+        "Algodón Orgánico": 18000.0,
+        "Sintético de Alta Densidad": 12000.0
+    }
     
-    nuevo_pedido = {
-        "id": len(pedidos_sistema) + 1,
+    precio_m2 = precios_materiales.get(material, 15000.0)
+    
+    try:
+        dimensiones = medidas.lower().replace("m", "").split("x")
+        ancho = float(dimensiones[0].strip())
+        largo = float(dimensiones[1].strip())
+        m2 = ancho * largo
+    except Exception as e:
+        logging.error(f"Error procesando medidas '{medidas}'. Fallback de 2m2 aplicado. Detalle: {str(e)}")
+        m2 = 2.0
+        
+    precio_calculado = m2 * precio_m2
+    anticipo = precio_calculado * 0.50
+    
+    pedido_nuevo = {
+        "id": nuevo_id,
         "cliente": cliente,
         "email": email,
         "material": material,
-        "medidas": f"{ancho}m x {largo}m",
-        "precio_total": float(precio_calculado),
-        "anticipo_requerido": float(anticipo),
-        "estado": "Pendiente de Cotización",
+        "medidas": medidas,
+        "precio_total": precio_calculado,
+        "anticipo_requerido": anticipo,
+        "estado": "Cotizacion Generada (Pendiente)",
         "boceto_aprobado": False,
-        "saldo_pendiente": float(anticipo)
+        "saldo_pendiente": precio_calculado,
+        "fecha_entrega": "Pendiente de confirmación",
+        "numero_guia": "N/A"
     }
     
-    pedidos_sistema.append(nuevo_pedido)
+    pedidos_sistema.append(pedido_nuevo)
     guardar_pedidos(pedidos_sistema)
-    logging.info(f"Pedido #{nuevo_pedido['id']} creado con éxito para el cliente {email}")
-    return RedirectResponse(url="/pedido", status_code=303)
+    
+    logging.info(f"Nueva solicitud de tapete registrada exitosamente. Pedido ID: #{nuevo_id}")
+    
+    # Recargar la vista con los pedidos actualizados de este usuario
+    mis_pedidos = [p for p in pedidos_sistema if p.get('email') == email]
+    return templates.TemplateResponse(request=request, name="pedido.html", context={
+        "msg": f"¡Pedido #{nuevo_id} enviado con éxito! Tu cotización fue registrada.", 
+        "usuario": email,
+        "pedidos": mis_pedidos
+    })
 
 @app.get("/admin", response_class=HTMLResponse)
-async def vista_admin(request: Request):
+async def panel_administracion(request: Request):
+    usuario_sesion = request.cookies.get("usuario")
+    rol_sesion = request.cookies.get("rol")
+    
+    if not usuario_sesion or rol_sesion not in ['administrador', 'operador']:
+        logging.warning(f"Acceso no autorizado bloqueado a la ruta /admin.")
+        return RedirectResponse(url="/", status_code=303)
+        
     pedidos_sistema = cargar_pedidos()
-    return templates.TemplateResponse(request, "admin.html", context={"pedidos": pedidos_sistema})
+    logging.info(f"El {rol_sesion} {usuario_sesion} accedió al Panel de Control de Pedidos.")
+    return templates.TemplateResponse(request=request, name="admin.html", context={"pedidos": pedidos_sistema, "usuario": usuario_sesion, "role": rol_sesion})
 
 @app.post("/orders/{pedido_id}/advance")
 async def avanzar_estado_pedido(pedido_id: int):
     pedidos_sistema = cargar_pedidos()
-    flujo_estados = ["Pendiente de Cotización", "En Production", "Listo para Despacho", "Despachado (Envío Finalizado)"]
+    flujo_estados = [
+        "Cotizacion Generada (Pendiente)", 
+        "Anticipo Pagado", 
+        "Diseño en Proceso", 
+        "Boceto Enviado", 
+        "Boceto Aprobado", 
+        "En Producción", 
+        "Listo para Despacho", 
+        "Despachado (Envío Finalizado)"
+    ]
     
     for p in pedidos_sistema:
         if p['id'] == pedido_id:
-            estado_actual = p.get('estado', "Pendiente de Cotización")
+            estado_actual = p.get('estado', "Cotizacion Generada (Pendiente)")
             if estado_actual in flujo_estados:
                 indice = flujo_estados.index(estado_actual)
                 if indice < len(flujo_estados) - 1:
                     p['estado'] = flujo_estados[indice + 1]
-                    if p['estado'] == "Listo para Despacho":
+                    if p['estado'] == "Despachado (Envío Finalizado)" or p['estado'] == "Listo para Despacho":
                         p['saldo_pendiente'] = 0.0
                     guardar_pedidos(pedidos_sistema)
                     logging.info(f"Pedido #{pedido_id} actualizado al estado: {p['estado']}")
@@ -214,27 +292,95 @@ async def avanzar_estado_pedido(pedido_id: int):
             
     return RedirectResponse(url="/admin", status_code=303)
 
-# =====================================================================
-# 5. ENDPOINTS DE API (Sprint 2 - Postman)
-# =====================================================================
-@app.get("/api/stock")
-async def obtener_stock():
-    return {
-        "Lana de Oveja Premium": {"disponible_m2": 45.5, "estado": "Stock Alto"},
-        "Algodón Orgánico": {"disponible_m2": 12.0, "estado": "Stock Crítico (Reordenar)"},
-        "Sintético de Alta Densidad": {"disponible_m2": 88.0, "estado": "Stock Alto"}
-    }
+@app.get("/logout")
+async def cerrar_sesion():
+    logging.info("Sesión finalizada por el usuario.")
+    redireccion = RedirectResponse(url="/", status_code=303)
+    redireccion.delete_cookie("usuario")
+    redireccion.delete_cookie("rol")
+    return redireccion
 
-@app.get("/api/rentabilidad")
-async def calcular_rentabilidad():
-    pedidos_sistema = cargar_pedidos()
-    ingresos_totales = sum(p.get('precio_total', 0) for p in pedidos_sistema)
-    costos_estimados = ingresos_totales * 0.40
-    ganancia_neta = ingresos_totales - costos_estimados
+# =====================================================================
+# 4. ENDPOINTS DE API ADICIONALES (Para Postman / Testing)
+# =====================================================================
+@app.get("/stock")
+async def obtener_stock(request: Request):
+    verificar_sesion_rol(request, ["administrador", "operador"])
+    return cargar_stock()
+
+@app.patch("/stock/{material_id}")
+async def actualizar_stock(material_id: int, request: Request):
+    verificar_sesion_rol(request, ["administrador", "operador"])
     
-    return {
-        "mes_evaluado": "Junio 2026",
-        "ingresos_brutos_ars": round(ingresos_totales, 2),
-        "costos_operativos_ars": round(costos_estimados, 2),
-        "ganancia_neta_ars": round(ganancia_neta, 2)
-    }
+    try:
+        body = await request.json()
+        quantity = body.get("quantity")
+    except:
+        raise HTTPException(status_code=422, detail="Cuerpo de solicitud inválido.")
+        
+    if quantity is None:
+        raise HTTPException(status_code=422, detail="El campo 'quantity' es requerido.")
+    if quantity < 0:
+        raise HTTPException(status_code=422, detail="El stock no puede ser negativo.")
+        
+    stocks = cargar_stock()
+    material_encontrado = None
+    for s in stocks:
+        if s["id"] == material_id:
+            material_encontrado = s
+            break
+            
+    if not material_encontrado:
+        raise HTTPException(status_code=404, detail="Material no encontrado.")
+        
+    material_encontrado["stock"] = quantity
+    guardar_stock(stocks)
+    
+    return {"id": material_encontrado["id"], "material": material_encontrado["material"], "stock": material_encontrado["stock"], "mensaje": "Stock actualizado."}
+
+@app.get("/reports/profitability")
+async def obtener_rentabilidad(request: Request, mes: str = None):
+    verificar_sesion_rol(request, ["administrador"])
+    
+    pedidos = cargar_pedidos()
+    pedidos_confirmados = [p for p in pedidos if "Pendiente" not in p.get("estado", "")]
+    
+    reportes_mes = {}
+    for p in pedidos_confirmados:
+        mes_pedido = "2026-06" 
+        if mes and mes != mes_pedido:
+            continue
+            
+        if mes_pedido not in reportes_mes:
+            reportes_mes[mes_pedido] = {
+                "mes": mes_pedido,
+                "ingresos_totales": 0.0,
+                "anticipos_cobrados": 0.0,
+                "saldo_pendiente": 0.0,
+                "pedidos_count": 0,
+                "desglose_dict": {}
+            }
+            
+        rep = reportes_mes[mes_pedido]
+        rep["pedidos_count"] += 1
+        precio_total = float(p.get("precio_total", 0))
+        rep["ingresos_totales"] += precio_total
+        rep["anticipos_cobrados"] += float(p.get("anticipo_requerido", 0))
+        rep["saldo_pendiente"] += float(p.get("saldo_pendiente", 0))
+            
+        mat = p.get("material", "Desconocido")
+        if mat not in rep["desglose_dict"]:
+            rep["desglose_dict"][mat] = {"material": mat, "cantidad": 0, "ingreso": 0.0}
+        rep["desglose_dict"][mat]["cantidad"] += 1
+        rep["desglose_dict"][mat]["ingreso"] += precio_total
+
+    resultado = []
+    for m, datos in reportes_mes.items():
+        datos["desglose"] = list(datos["desglose_dict"].values())
+        del datos["desglose_dict"]
+        resultado.append(datos)
+        
+    if mes and not resultado:
+        return {"mes": mes, "ingresos_totales": 0, "anticipos_cobrados": 0, "saldo_pendiente": 0, "pedidos_count": 0, "desglose": []}
+        
+    return resultado
