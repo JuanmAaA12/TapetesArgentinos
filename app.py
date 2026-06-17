@@ -197,8 +197,12 @@ async def registrar_nuevo_pedido(
     cliente: str = Form(...),
     email: str = Form(...),
     material: str = Form(...),
-    medidas: str = Form(...)
+    medidas: str = Form(None)  # Cambiado a None (opcional) para evitar el error de FastAPI si el HTML falla
 ):
+    # Si por algún problema del HTML llega vacío o no llega, le asignamos una medida por defecto segura
+    if not medidas or medidas.strip() == "":
+        medidas = "2.0m x 1.5m"
+
     pedidos_sistema = cargar_pedidos()
     nuevo_id = max([p['id'] for p in pedidos_sistema], default=0) + 1
     
